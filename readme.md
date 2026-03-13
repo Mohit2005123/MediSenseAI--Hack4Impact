@@ -8,7 +8,7 @@ This is a full-stack Node.js-based WhatsApp bot that helps users understand thei
 
 - 📸 **Prescription OCR** using LLaMA 4 Scout (`meta-llama/llama-4-scout-17b`)
 - 🔊 **Voice-based Q&A** using SarvamAI's Automatic Speech Recognition and text-to-speech APIs
-- 🌐 **Multilingual support** (Hindi, Bengali, Tamil, Telugu, Kannada, Malayalam, Marathi, Gujarati, English)
+- 🌐 **Multilingual support** (Hindi, Bengali, Tamil, Telugu, Gujarati, Kannada, Malayalam, Marathi, Punjabi, Odia, English)
 - 🧠 **Medical question answering**  using II-Medical-8B-1706
 - 🧾 **Simple, spoken prescription summaries**
 - 📤 **WhatsApp integration** using Twilio

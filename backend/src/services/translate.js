@@ -392,8 +392,17 @@ async function translateText(text, targetLang, sourceLang = 'auto') {
   // Try Groq LLM first
   try {
     const languageNames = {
-      'hi': 'Hindi', 'en': 'English', 'bn': 'Bengali', 'ta': 'Tamil', 'te': 'Telugu',
-      'kn': 'Kannada', 'ml': 'Malayalam', 'mr': 'Marathi', 'gu': 'Gujarati'
+      hi: 'Hindi',
+      en: 'English',
+      bn: 'Bengali',
+      ta: 'Tamil',
+      te: 'Telugu',
+      kn: 'Kannada',
+      ml: 'Malayalam',
+      mr: 'Marathi',
+      gu: 'Gujarati',
+      pa: 'Punjabi',
+      or: 'Odia'
     };
     const targetLangName = languageNames[targetLang] || targetLang;
     

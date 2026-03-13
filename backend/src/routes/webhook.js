@@ -33,15 +33,26 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
         '6': { code: 'kn', label: 'Kannada' },
         '7': { code: 'ml', label: 'Malayalam' },
         '8': { code: 'mr', label: 'Marathi' },
-        '9': { code: 'gu', label: 'Gujarati' }
+        '9': { code: 'gu', label: 'Gujarati' },
+        '10': { code: 'pa', label: 'Punjabi' },
+        '11': { code: 'or', label: 'Odia' }
       };
 
       const langCodeMap = {
-        hi: 'hi-IN', en: 'en-IN', bn: 'bn-IN', ta: 'ta-IN',
-        te: 'te-IN', kn: 'kn-IN', ml: 'ml-IN', mr: 'mr-IN', gu: 'gu-IN'
+        hi: 'hi-IN',
+        en: 'en-IN',
+        bn: 'bn-IN',
+        ta: 'ta-IN',
+        te: 'te-IN',
+        kn: 'kn-IN',
+        ml: 'ml-IN',
+        mr: 'mr-IN',
+        gu: 'gu-IN',
+        pa: 'pa-IN',
+        or: 'or-IN'
       };
 
-      const adminLanguageList = `\n1 Hindi\n2 English\n3 Bengali\n4 Tamil\n5 Telugu\n6 Kannada\n7 Malayalam\n8 Marathi\n9 Gujarati\n\nPlease send the number of your preferred language.\n`;
+      const adminLanguageList = `\n1 Hindi\n2 English\n3 Bengali\n4 Tamil\n5 Telugu\n6 Kannada\n7 Malayalam\n8 Marathi\n9 Gujarati\n10 Punjabi\n11 Odia\n\nPlease send the number of your preferred language.\n`;
 
       const adminStaticPrescription = {
         hi: 'यह एक डेमो प्रिस्क्रिप्शन व्याख्या है। टैबलेट A भोजन के बाद दिन में दो बार लें। टैबलेट B रात में एक बार लें। कृपया डॉक्टर की सलाह के बिना दवाएँ न बदलें। यह संदेश एडमिन डेमो मोड में हर बार एक जैसा रहेगा।',
@@ -74,7 +85,7 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
           await twilioClient.messages.create({
             from: 'whatsapp:+14155238886',
             to: from,
-            body: '🛠️ Admin demo mode is already ON.\n\nTo exit admin mode, type 68.\nTo change language, reply with a number (1–9).'
+            body: '🛠️ Admin demo mode is already ON.\n\nTo exit admin mode, type 68.\nTo change language, reply with a number (1–11).'
           });
           return res.sendStatus(200);
         }
@@ -88,7 +99,7 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
         await twilioClient.messages.create({
           from: 'whatsapp:+14155238886',
           to: from,
-          body: '🛠️ Admin demo mode ON.\n\nPlease select language (1–9). To exit admin mode anytime, type 68.',
+          body: '🛠️ Admin demo mode ON.\n\nPlease select language (1–11). To exit admin mode anytime, type 68.',
           mediaUrl: langAudioURL ? [langAudioURL] : undefined
         });
 
@@ -118,7 +129,7 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
         return res.sendStatus(200);
       }
 
-      // Admin mode: language selection (1–9)
+      // Admin mode: language selection (1–11)
       if (userState[from]?.adminMode && incomingMsg && langMap[incomingMsg]) {
         const selectedLang = langMap[incomingMsg];
         userState[from].waitingForAdminLanguage = false;
@@ -139,7 +150,7 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
         await twilioClient.messages.create({
           from: 'whatsapp:+14155238886',
           to: from,
-          body: 'Please select language (1–9) to continue in admin demo mode.',
+          body: 'Please select language (1–11) to continue in admin demo mode.',
           mediaUrl: langAudioURL ? [langAudioURL] : undefined
         });
         if (!langAudioURL) {
@@ -288,15 +299,17 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
 
         // Add reminder prompt to the prescription explanation in user's selected language
         const reminderPrompts = {
-          'hi': 'क्या आप चाहते हैं कि मैं आपके नुस्खे के अनुसार आपकी दवाओं के लिए एक अनुस्मारक सेट करूं? फिर दो दबाएं।',
-          'en': 'Would you like me to setup a reminder for your medicines as per your prescription? Then press two.',
-          'bn': 'আপনি কি চান যে আমি আপনার প্রেসক্রিপশন অনুযায়ী আপনার ওষুধের জন্য একটি অনুস্মারক সেট করি? তাহলে দুই চাপুন।',
-          'ta': 'உங்கள் மருந்துச்சீட்டின் படி உங்கள் மருந்துகளுக்கு நினைவூட்டல் அமைக்க விரும்புகிறீர்களா? பின்னர் இரண்டு அழுத்தவும்।',
-          'te': 'మీరు మీ ప్రిస్క్రిప్షన్ ప్రకారం మీ మందులకు రిమైండర్ సెటప్ చేయాలనుకుంటున్నారా? అప్పుడు రెండు నొక్కండి।',
-          'kn': 'ನಿಮ್ಮ ಪ್ರಿಸ್ಕ್ರಿಪ್ಷನ್ ಪ್ರಕಾರ ನಿಮ್ಮ ಔಷಧಿಗಳಿಗೆ ರಿಮೈಂಡರ್ ಸೆಟಪ್ ಮಾಡಲು ನೀವು ಬಯಸುತ್ತೀರಾ? ನಂತರ ಎರಡು ಒತ್ತಿರಿ।',
-          'ml': 'നിങ്ങളുടെ പ്രിസ്ക്രിപ്ഷൻ അനുസരിച്ച് നിങ്ങളുടെ മരുന്നുകൾക്ക് ഒരു ഓർമ്മപ്പെടുത്തൽ സജ്ജമാക്കാൻ നിങ്ങൾ ആഗ്രഹിക്കുന്നുണ്ടോ? പിന്നെ രണ്ട് അമർത്തുക।',
-          'mr': 'तुम्हाला तुमच्या प्रिस्क्रिप्शननुसार तुमच्या औषधांसाठी रिमाइंडर सेट करायचा आहे का? मग दोन दाबा।',
-          'gu': 'શું તમે ઇચ્છો છો કે હું તમારા પ્રિસ્ક્રિપ્શન મુજબ તમારી દવાઓ માટે રિમાઇન્ડર સેટ કરું? પછી બે દબાવો।'
+          hi: 'क्या आप चाहते हैं कि मैं आपके नुस्खे के अनुसार आपकी दवाओं के लिए एक अनुस्मारक सेट करूं? फिर दो दबाएं।',
+          en: 'Would you like me to setup a reminder for your medicines as per your prescription? Then press two.',
+          bn: 'আপনি কি চান যে আমি আপনার প্রেসক্রিপশন অনুযায়ী আপনার ওষুধের জন্য একটি অনুস্মারক সেট করি? তাহলে দুই চাপুন।',
+          ta: 'உங்கள் மருந்துச்சீட்டின் படி உங்கள் மருந்துகளுக்கு நினைவூட்டல் அமைக்க விரும்புகிறீர்களா? பின்னர் இரண்டு அழுத்தவும்।',
+          te: 'మీరు మీ ప్రిస్క్రిప్షన్ ప్రకారం మీ మందులకు రిమైండర్ సెటప్ చేయాలనుకుంటున్నారా? అప్పుడు రెండు నొక్కండి।',
+          kn: 'ನಿಮ್ಮ ಪ್ರಿಸ್ಕ್ರಿಪ್ಷನ್ ಪ್ರಕಾರ ನಿಮ್ಮ ಔಷಧಿಗಳಿಗೆ ರಿಮೈಂಡರ್ ಸೆಟಪ್ ಮಾಡಲು ನೀವು ಬಯಸುತ್ತೀರಾ? ನಂತರ ಎರಡು ಒತ್ತಿರಿ।',
+          ml: 'നിങ്ങളുടെ പ്രിസ്ക്രിപ്ഷൻ അനുസരിച്ച് നിങ്ങളുടെ മരുന്നുകൾക്ക് ഒരു ഓർമ്മപ്പെടുത്തൽ സജ്ജമാക്കാൻ നിങ്ങൾ ആഗ്രഹിക്കുന്നുണ്ടോ? പിന്നെ രണ്ട് അമർത്തുക।',
+          mr: 'तुम्हाला तुमच्या प्रिस्क्रिप्शननुसार तुमच्या औषधांसाठी रिमाइंडर सेट करायचा आहे का? मग दोन दाबा।',
+          gu: 'શું તમે ઇચ્છો છો કે હું તમારા પ્રિસ્ક્રિપ્શન મુજબ તમારી દવાઓ માટે રિમાઇન્ડર સેટ કરું? પછી બે દબાવો।',
+          pa: 'ਕੀ ਤੁਸੀਂ ਚਾਹੁੰਦੇ ਹੋ ਕਿ ਮੈਂ ਤੁਹਾਡੇ ਨੁਸਖ਼ੇ ਅਨੁਸਾਰ ਤੁਹਾਡੀਆਂ ਦਵਾਈਆਂ ਲਈ ਰਿਮਾਈਂਡਰ ਸੈੱਟ ਕਰਾਂ? ਤਾਂ ਫਿਰ ਦੋ ਦਬਾਓ।',
+          or: 'ଆପଣ ଚାହୁଁଛନ୍ତି କି ଯେ ମୁଁ ଆପଣଙ୍କ ପ୍ରେସକ୍ରିପ୍ସନଅନୁସାରେ ଆପଣଙ୍କ ଔଷଧ ପାଇଁ ଏକ ରିମାଇଣ୍ଡର ସେଟ୍ କରିଦିଏଁ? ତେବେ ଦୁଇ ଦବାନ୍ତୁ।'
         };
         
         const reminderPromptTranslated = reminderPrompts[selectedLang.code] || reminderPrompts['en'];
@@ -364,7 +377,9 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
           'kn-IN': 'ನಿಮ್ಮ ಪ್ರಿಸ್ಕ್ರಿಪ್ಷನ್ ಪ್ರಕಾರ ನಿಮ್ಮ ಔಷಧಿಗಳಿಗೆ ರಿಮೈಂಡರ್ ಸೆಟ್ ಮಾಡಲಾಗಿದೆ।',
           'ml-IN': 'നിങ്ങളുടെ പ്രിസ്ക്രിപ്ഷൻ അനുസരിച്ച് നിങ്ങളുടെ മരുന്നുകൾക്ക് ഓർമ്മപ്പെടുത്തൽ സജ്ജമാക്കി।',
           'mr-IN': 'तुमच्या प्रिस्क्रिप्शननुसार तुमच्या औषधांसाठी रिमाइंडर सेट केले आहे।',
-          'gu-IN': 'તમારા પ્રિસ્ક્રિપ્શન મુજબ તમારી દવાઓ માટે રિમાઇન્ડર સેટ કરવામાં આવ્યું છે।'
+          'gu-IN': 'તમારા પ્રિસ્ક્રિપ્શન મુજબ તમારી દવાઓ માટે રિમાઇન્ડર સેટ કરવામાં આવ્યું છે।',
+          'pa-IN': 'ਤੁਹਾਡੇ ਨੁਸਖ਼ੇ ਅਨੁਸਾਰ ਤੁਹਾਡੀਆਂ ਦਵਾਈਆਂ ਲਈ ਰਿਮਾਈਂਡਰ ਸੈੱਟ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ।',
+          'or-IN': 'ଆପଣଙ୍କ ପ୍ରେସକ୍ରିପ୍ସନ୍‌ ଅନୁସାରେ ଆପଣଙ୍କ ଔଷଧ ପାଇଁ ରିମାଇଣ୍ଡର ସେଟ୍ କରାଯାଇଛି।'
         };
         
         const confirmationMessage = confirmationMessages[langCode] || confirmationMessages['en-IN'];
@@ -479,6 +494,8 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
 7 Malayalam
 8 Marathi
 9 Gujarati
+10 Punjabi
+11 Odia
 
 Please send the number of your preferred language.
 `;
@@ -488,7 +505,7 @@ Please send the number of your preferred language.
         await twilioClient.messages.create({
           from: 'whatsapp:+14155238886',
           to: from,
-          body: `🎙️ Please listen and reply with a number (1–9) to select your language.`,
+          body: `🎙️ Please listen and reply with a number (1–11) to select your language.`,
           mediaUrl: [langAudioURL]
         });
 
@@ -497,8 +514,8 @@ Please send the number of your preferred language.
           to: from,
           body:
             '🗣️ In which language would you like to hear the summary?\n' +
-            '1. हिंदी\n2. English\n3. বাংলা\n4. தமிழ்\n5. తెలుగు\n6. ಕನ್ನಡ\n7.മലയാളം \n8. मराठी\n9. ગુજરાતી\n' +
-            '\n👉 Reply with the number (1–9).\n\n' +
+            '1. हिंदी\n2. English\n3. বাংলা\n4. தமிழ்\n5. తెలుగు\n6. ಕನ್ನಡ\n7.മലയാളം \n8. मराठी\n9. ગુજરાતી\n10. ਪੰਜਾਬੀ\n11. ଓଡିଆ\n' +
+            '\n👉 Reply with the number (1–11).\n\n' +
             '💡 Tip: Type "LINK" or "🔗" anytime to access your health dashboard!'
         });
 

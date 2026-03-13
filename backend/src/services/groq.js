@@ -278,8 +278,17 @@ async function answerQuestionWithContext(summary, question, targetLanguage = 'en
   const MODEL = 'openai/gpt-oss-120b';
 
   const languageNames = {
-    'hi': 'Hindi', 'en': 'English', 'bn': 'Bengali', 'ta': 'Tamil', 'te': 'Telugu',
-    'kn': 'Kannada', 'ml': 'Malayalam', 'mr': 'Marathi', 'gu': 'Gujarati'
+    hi: 'Hindi',
+    en: 'English',
+    bn: 'Bengali',
+    ta: 'Tamil',
+    te: 'Telugu',
+    kn: 'Kannada',
+    ml: 'Malayalam',
+    mr: 'Marathi',
+    gu: 'Gujarati',
+    pa: 'Punjabi',
+    or: 'Odia'
   };
   const targetLangName = languageNames[targetLanguage] || targetLanguage;
   
