@@ -263,7 +263,7 @@ module.exports = function webhookRouterFactory({ twilioClient }) {
         await twilioClient.messages.create({
           from: 'whatsapp:+14155238886',
           to: from,
-          body: '🔗 Here\'s the link to Swaasthya-Saathi:\n\nhttps://swaasthya-saathi-dashboard.vercel.app/\n\nAccess your health dashboard and manage your prescriptions!'
+          body: '🔗 Here\'s the link to MediSenseAI:\n\nhttps://swaasthya-saathi-dashboard.vercel.app/\n\nAccess your health dashboard and manage your prescriptions!'
         });
         return res.sendStatus(200);
       }

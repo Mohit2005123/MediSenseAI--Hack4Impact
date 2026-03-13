@@ -1,7 +1,7 @@
-Swaasthya-Saathi — System Architecture and Workflow
+MediSenseAI — System Architecture and Workflow
 
 Overview
-Swaasthya-Saathi is a multi-part system that turns WhatsApp interactions and user images into language-localized voice guidance and a simple dashboard experience. It comprises:
+MediSenseAI is a multi-part system that turns WhatsApp interactions and user images into language-localized voice guidance and a simple dashboard experience. It comprises:
 - Node.js WhatsApp bot backend (Express + Twilio Webhooks)
 - AI services for vision, LLM reasoning, translation, and TTS
 - A Next.js Dashboard app (mobile-focused UI) for viewing prescriptions and nearby stores

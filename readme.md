@@ -1,4 +1,4 @@
-# 🩺 Swaasthya-Saathi
+# 🩺 MediSenseAI
 
 This is a full-stack Node.js-based WhatsApp bot that helps users understand their prescriptions. It supports **OCR**, **voice interaction in Indian languages**, and **multilingual audio summaries**. Built for accessibility and simplicity, the bot extracts medical information from prescription images and allows voice-based follow-up questions — with replies in **regional Indian languages** using **Sarvam AI** and **LLaMA 4 Scout**.
 
@@ -77,7 +77,7 @@ Copy the `https://...ngrok.io` URL and paste it into your `.env` as `NGROK_DOMAI
 
 ---
 
-## How to use Swaasthya-Saathi (Deployed Version)
+## How to use MediSenseAI (Deployed Version)
 You can interact with the deployed bot via Twilio or our frontend:
 
 #### 1. Join our WhatsApp sandbox:
