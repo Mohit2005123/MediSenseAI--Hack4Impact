@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for mobile-first design */
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  /* Mobile-first button styles */
+  .btn-primary {
+    @apply bg-primary-500 text-white px-6 py-3 rounded-xl font-semibold text-lg min-h-[48px] min-w-[48px] touch-manipulation;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-primary-500 border-2 border-primary-500 px-6 py-3 rounded-xl font-semibold text-lg min-h-[48px] min-w-[48px] touch-manipulation;
+  }
+  
+  /* Card styles */
+  .card-mobile {
+    @apply bg-white rounded-2xl shadow-lg p-4 border border-gray-100;
+  }
+  
+  /* Touch-friendly spacing */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+  
+  /* Visual hierarchy */
+  .text-hero {
+    @apply text-2xl font-bold text-gray-900;
+  }
+  
+  .text-section {
+    @apply text-lg font-semibold text-gray-800;
+  }
+  
+  .text-body {
+    @apply text-base text-gray-600;
+  }
+  
+  .text-small {
+    @apply text-sm text-gray-500;
+  }
+}
+
+@layer utilities {
+  /* Custom animations */
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-bounce-gentle {
+    animation: bounceGentle 2s infinite;
+  }
+  
+  /* Mobile-specific utilities */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* High contrast for accessibility */
+  .high-contrast {
+    @apply text-gray-900 bg-white border-2 border-gray-900;
+  }
+  
+  /* Focus styles for accessibility */
+  .focus-visible {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+  }
+}
+
+/* Leaflet map styles */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.leaflet-popup-content {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar for mobile */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Ensure proper mobile viewport */
+@viewport {
+  width: device-width;
+  initial-scale: 1;
+  maximum-scale: 1;
+  user-scalable: no;
+}

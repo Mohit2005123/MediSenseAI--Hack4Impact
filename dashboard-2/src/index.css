@@ -1,0 +1,199 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet CSS - Must be at the top */
+@import 'leaflet/dist/leaflet.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.css';
+@import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
+/* Healthcare Design System - Premium Production Quality */
+
+@layer base {
+  :root {
+    /* Base colors - Soft, modern healthcare palette */
+    --background: 210 25% 98%;
+    --foreground: 215 30% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 30% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 30% 12%;
+
+    /* Primary: Vibrant Medical Blue with gradients */
+    --primary: 205 90% 48%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 205 90% 92%;
+    --primary-dark: 205 90% 38%;
+    --primary-glow: 205 90% 65%;
+
+    /* Secondary: Fresh Healthcare Green */
+    --secondary: 158 64% 52%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 158 64% 92%;
+
+    /* Muted: Sophisticated neutrals */
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 18% 50%;
+
+    /* Accent: Energetic teal accent */
+    --accent: 185 62% 55%;
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 185 62% 95%;
+
+    /* Destructive: Clear warning red */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* UI Elements */
+    --border: 214 20% 90%;
+    --input: 214 20% 95%;
+    --ring: 205 90% 48%;
+
+    --radius: 1rem;
+
+    /* Premium design tokens */
+    --health-blue: 205 90% 48%;
+    --health-green: 158 64% 52%;
+    --health-teal: 185 62% 55%;
+    --health-purple: 260 60% 60%;
+    --health-light: 205 90% 96%;
+    --health-bg: 210 25% 98%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(205 90% 48%) 0%, hsl(185 62% 55%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 52%) 0%, hsl(185 62% 55%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(205 90% 48%) 0%, hsl(185 62% 55%) 50%, hsl(158 64% 52%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(210 25% 99%) 100%);
+
+    /* Shadows - Professional depth */
+    --shadow-sm: 0 2px 8px -2px hsl(205 90% 48% / 0.1);
+    --shadow-md: 0 4px 16px -4px hsl(205 90% 48% / 0.15);
+    --shadow-lg: 0 8px 32px -8px hsl(205 90% 48% / 0.2);
+    --shadow-xl: 0 16px 48px -12px hsl(205 90% 48% / 0.25);
+    --shadow-glow: 0 0 32px hsl(205 90% 65% / 0.3);
+
+    /* Glass effects */
+    --glass-bg: hsl(0 0% 100% / 0.7);
+    --glass-border: hsl(0 0% 100% / 0.3);
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 220 30% 8%;
+    --foreground: 210 25% 96%;
+
+    --card: 220 28% 11%;
+    --card-foreground: 210 25% 96%;
+
+    --popover: 220 28% 11%;
+    --popover-foreground: 210 25% 96%;
+
+    --primary: 205 90% 58%;
+    --primary-foreground: 220 30% 8%;
+    --primary-light: 205 90% 20%;
+    --primary-dark: 205 90% 48%;
+    --primary-glow: 205 90% 70%;
+
+    --secondary: 158 64% 55%;
+    --secondary-foreground: 220 30% 8%;
+    --secondary-light: 158 64% 22%;
+
+    --muted: 220 25% 16%;
+    --muted-foreground: 215 20% 70%;
+
+    --accent: 185 62% 60%;
+    --accent-foreground: 220 30% 8%;
+    --accent-light: 185 62% 20%;
+
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 210 25% 96%;
+
+    --border: 220 25% 20%;
+    --input: 220 25% 16%;
+    --ring: 205 90% 58%;
+
+    --health-blue: 205 90% 58%;
+    --health-green: 158 64% 55%;
+    --health-teal: 185 62% 60%;
+    --health-purple: 260 60% 65%;
+    --health-light: 205 90% 18%;
+    --health-bg: 220 30% 10%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(205 90% 58%) 0%, hsl(185 62% 60%) 100%);
+    --gradient-secondary: linear-gradient(135deg, hsl(158 64% 55%) 0%, hsl(185 62% 60%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(205 90% 58%) 0%, hsl(185 62% 60%) 50%, hsl(158 64% 55%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(220 28% 11%) 0%, hsl(220 28% 13%) 100%);
+
+    --shadow-sm: 0 2px 8px -2px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 16px -4px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 32px -8px hsl(0 0% 0% / 0.5);
+    --shadow-xl: 0 16px 48px -12px hsl(0 0% 0% / 0.6);
+    --shadow-glow: 0 0 32px hsl(205 90% 70% / 0.4);
+
+    --glass-bg: hsl(220 28% 11% / 0.7);
+    --glass-border: hsl(0 0% 100% / 0.1);
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+
+  /* Glass morphism utilities */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Premium shadows */
+  .shadow-premium {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+}

@@ -1,0 +1,153 @@
+Swaasthya-Saathi — System Architecture and Workflow
+
+Overview
+Swaasthya-Saathi is a multi-part system that turns WhatsApp interactions and user images into language-localized voice guidance and a simple dashboard experience. It comprises:
+- Node.js WhatsApp bot backend (Express + Twilio Webhooks)
+- AI services for vision, LLM reasoning, translation, and TTS
+- A Next.js Dashboard app (mobile-focused UI) for viewing prescriptions and nearby stores
+- A Python FastAPI “medical-api-endpoints” microservice that structures medical content and performs safer Q&A
+
+Key External Services
+- Twilio WhatsApp: inbound/outbound messaging and media
+- Groq Cloud LLM/VLM: image understanding, Q&A, JSON reasoning
+- Sarvam.ai TTS & STT: speech generation (Bulbul) and speech-to-text (Saarika)
+- ffmpeg: media transcoding and concatenation
+- Ngrok (or public host): serving generated MP3s from backend/public
+
+Repositories/Apps
+- backend/ (Express server, WhatsApp flow, media hosting)
+- dashboard/ (Next.js app for user UI)
+- Frontend/swaasthya-saathi-frontend/ (marketing/landing front-end)
+- medical-api-endpoints/ (FastAPI microservice for medical summarization & Q&A)
+
+Data Flow (High-Level)
+1) User sends a prescription image on WhatsApp.
+2) Backend downloads media from Twilio, hosts it, and calls Groq VLM to derive a clean, patient-facing text summary. The summary is refined via the Python medical API into a structured and simplified instruction set.
+3) Backend asks the user to pick a preferred language and can generate an audio summary via Sarvam.ai TTS. MP3s are hosted at /static and linked back via Twilio.
+4) The user can send medicine label images. The backend uses Groq to decide if it is a medicine, match against the prescription, and produce instructions. Responses are localized (translation + numeral localization) and optionally converted to speech.
+5) The user can send voice questions. Audio is converted (ffmpeg) and transcribed (Sarvam.ai STT). The question is answered by Groq LLM with the prescription summary as context, translated/localized, and optionally spoken via TTS.
+6) The dashboard app provides a separate UI showcasing sample prescriptions, a modal view, and a nearby stores map. (No direct persistence from WhatsApp flow is wired currently.)
+
+Core Backend Architecture (backend/)
+- server.js
+  - Express app, serves /static from backend/public with Content-Type fix for .mp3
+  - Parses x-www-form-urlencoded for Twilio webhooks
+  - Mounts webhook routes
+
+- src/routes/webhook.js
+  - Single POST /whatsapp-webhook entrypoint
+  - Maintains an in-memory userState keyed by WhatsApp number:
+    - waitingForLanguage, summary, expectingVoice, languageCode, languageLabel, awaitingMedicinePhoto
+  - Handlers:
+    - Session reset: text "done"
+    - Link shortcut: "link" or "🔗" returns dashboard URL
+    - Language selection: numeric option 1–9 sets language state and sends audio prompt; enables voice Q&A
+    - Prescription image step:
+      1. downloadTwilioMedia(image)
+      2. getImagePrescriptionSummary(imageUrl) via Groq VLM → refined by medical API
+      3. ask for language; prepare for medicine photos
+    - Medicine image step:
+      1. analyzeMedicineImage(summary, imageUrl, lang)
+      2. Always return instructions or extracted text; optionally TTS
+    - Voice follow-up step:
+      1. Download & convert OGG→WAV (ffmpeg)
+      2. Sarvam.ai STT → transcript
+      3. answerQuestionWithContext(summary, transcript, lang) via Groq → translate/localize → TTS (optional)
+
+- src/services/groq.js
+  - getImagePrescriptionSummary(imageUrl)
+    - Groq VLM extracts plain patient instructions from image
+    - Calls medical-api-endpoints /summarize-prescription to structure/normalize and then refines via Groq into final plain summary
+  - analyzeMedicineImage(summary, imageUrl, targetLang)
+    - VLM JSON result: is_medicine, matches_prescription, medicine_name, instructions, warning
+    - OCR fallback: extract text, re-evaluate as JSON
+    - Translates and localizes instructions/warnings to targetLang
+  - answerQuestionWithContext(summary, question, targetLang)
+    - Long-form safe medical answer (system prompt)
+    - Ensures minimum length; expansion if too short
+    - Translates and localizes numerals/words
+
+- src/services/translate.js
+  - translateText(text, targetLang, sourceLang='auto') with Groq primary and Google public translate fallback
+  - replaceNumbersWithWords: for Hindi, convert numbers to words with domain tweaks (e.g., “mg”)
+  - convertAsciiDigitsToNative: maps 0–9 to local scripts (hi/bn/gu/ta/te/kn/ml/etc.)
+
+- src/services/tts.js
+  - generateSpeechFromText(text, langCode, timestamp)
+    - Splits long text into chunks
+    - Sarvam.ai Bulbul TTS per chunk → raw → ffmpeg to mp3
+    - Concatenates chunk MP3s into final /public/answer_<timestamp>.mp3
+    - Returns ngrokDomain/static/answer_<timestamp>.mp3 URL
+
+- src/utils/media.js (downloadTwilioMedia)
+  - Downloads Twilio-hosted media, writes to backend/public, returns hosted URL for Groq and Twilio replies
+
+- src/config/env.js
+  - Handles NGROK_DOMAIN, GROQ_API_KEY, SARVAM_API_KEY, Twilio creds, etc.
+
+Medical API (medical-api-endpoints/)
+- app/main.py (FastAPI)
+  - /summarize-prescription
+    - Safety prefilter
+    - run_summarize → paragraph draft (LangChain to II medical model)
+    - refine_prescription_to_json → strict JSON schema (PrescriptionSummary)
+  - /answer-query
+    - Safety prefilter
+    - Retrieval: in-code Indian medicines context + optional prescription-derived context
+    - run_qa → paragraph draft
+    - refine_answer_to_json → strict schema with safety footer and sources
+- app/chains/medical_model.py
+  - LangChain pipelines that produce the draft paragraphs from II medical model
+- app/chains/gpt_refiner.py, safety.py, retrieval.py, schemas.py
+  - JSON enforcement, disclaimers, domain knowledge snippets, and Pydantic models
+
+Dashboard (dashboard/)
+- Next.js app with mobile-first UI components:
+  - app/page.js: composes sections: HealthSnapshotCards, PrescriptionsCarousel, NearbyStoresMap, QuickActions, and a PrescriptionModal
+  - lib/samplePrescriptions.js and lib/sampleStores.js: mock data for demo
+  - components/NearbyStoresMap.js: react-leaflet or graceful fallback with store list and controls
+  - No live link to WhatsApp session yet (sample/demo content)
+
+Landing Frontend (Frontend/swaasthya-saathi-frontend/)
+- Vite + React marketing site with Hero, TechStack, etc.
+
+End-to-End WhatsApp Flow (Step-by-step)
+1. Incoming message → Twilio hits backend POST /whatsapp-webhook (x-www-form-urlencoded)
+2. If image and no summary:
+   a. Save image → public URL
+   b. Groq VLM → initial plain instructions
+   c. Python API /summarize-prescription → structured and refined summary
+   d. Ask for language → send audio list (TTS Hindi by default)
+   e. Set userState: waitingForLanguage=true, awaitingMedicinePhoto=true
+3. Language selection (1–9):
+   a. Translate summary to selected language
+   b. Generate TTS in langCode, reply with MP3 (or text fallback)
+   c. Enable expectingVoice=true for follow-up voice Q&A
+4. Medicine label images:
+   a. Groq VLM classify & compare with prescription; produce instructions or text extraction
+   b. Translate/localize and TTS reply in selected language
+5. Voice notes:
+   a. Download OGG → convert to WAV via ffmpeg
+   b. Sarvam.ai STT → transcript
+   c. Groq LLM QA with prescription summary as context → translate/localize → TTS
+6. "done" resets user session state; "link" or "🔗" returns dashboard URL
+
+State & Persistence
+- userState is in-memory (per-process) and volatile. There is no DB in the current code. Scaling to multiple instances requires shared state (e.g., Redis) and a media/object store for images/audio (e.g., S3) rather than local disk.
+
+Security & Privacy Considerations
+- Media is stored under backend/public and publicly served. Replace with time-scoped URLs and private storage in production.
+- API keys for Groq/Sarvam/Twilio must be secured via environment variables and secrets management.
+- Add authentication/authorization for dashboard if connecting real user data.
+
+Operational Notes
+- ffmpeg is required on the host/container for audio conversions and concatenation
+- /static path serves mp3 with correct Content-Type
+- Ngrok domain is used to expose local server and to allow Twilio and WhatsApp to fetch media
+
+Future Integration Ideas
+- Persist structured summaries and media to a database; connect Dashboard to real data
+- Add user auth and secure link from WhatsApp to Dashboard profile
+- Replace in-memory state with Redis and move files to cloud storage (S3/GCS)
+- Add webhook verification and request signing checks
+- Robust error handling and retries for external calls
