@@ -4,18 +4,49 @@ const fs = require('fs');
 const FormData = require('form-data');
 const fetch = require('node-fetch');
 const { spawn } = require('child_process');
+const twilio = require('twilio');
 
 const { translateText } = require('../services/translate');
 const { generateSpeechFromText } = require('../services/tts');
 const { getImagePrescriptionSummary, answerQuestionWithContext, analyzeMedicineImage } = require('../services/groq');
 const { downloadTwilioMedia } = require('../utils/media');
-const { SARVAM_API_KEY } = require('../config/env');
+const { SARVAM_API_KEY, NGROK_DOMAIN } = require('../config/env');
 
 const userState = {};
 
+// Shared language mapping for both WhatsApp and voice agent flows
+const voiceLangMap = {
+  '1': { code: 'hi', label: 'Hindi' },
+  '2': { code: 'en', label: 'English' },
+  '3': { code: 'bn', label: 'Bengali' },
+  '4': { code: 'ta', label: 'Tamil' },
+  '5': { code: 'te', label: 'Telugu' },
+  '6': { code: 'kn', label: 'Kannada' },
+  '7': { code: 'ml', label: 'Malayalam' },
+  '8': { code: 'mr', label: 'Marathi' },
+  '9': { code: 'gu', label: 'Gujarati' },
+  '10': { code: 'pa', label: 'Punjabi' },
+  '11': { code: 'or', label: 'Odia' }
+};
 
-module.exports = function webhookRouterFactory({ twilioClient }) {
+const voiceLangCodeMap = {
+  hi: 'hi-IN',
+  en: 'en-IN',
+  bn: 'bn-IN',
+  ta: 'ta-IN',
+  te: 'te-IN',
+  kn: 'kn-IN',
+  ml: 'ml-IN',
+  mr: 'mr-IN',
+  gu: 'gu-IN',
+  pa: 'pa-IN',
+  or: 'or-IN'
+};
+
+
+module.exports = function webhookRouterFactory({ twilioClient, ngrokDomain }) {
   const router = express.Router();
+  const baseDomain = ngrokDomain || NGROK_DOMAIN;
 
   router.post('/whatsapp-webhook', async (req, res) => {
     const from = req.body.From;
@@ -597,6 +628,401 @@ Please send the number of your preferred language.
       console.error('❌ Error:', err.message);
       res.sendStatus(500);
     }
+  });
+
+  // Basic IVR entrypoint for incoming voice calls
+  router.post('/voice-webhook', (req, res) => {
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+
+    const gather = twiml.gather({
+      input: 'dtmf speech',
+      numDigits: 1,
+      action: '/voice-menu',
+      method: 'POST',
+      timeout: 5
+    });
+
+    gather.say(
+      {
+        voice: 'Polly.Aditi',
+        language: 'en-IN'
+      },
+      'Welcome to MediSense A I. For prescription understanding and medicine instructions, press 1. For blood pressure reminders, press 2. To receive our WhatsApp assistant link by SMS, press 3. To hear these options again, press any other key.'
+    );
+
+    // If no input is received, repeat the menu once
+    twiml.redirect('/voice-webhook');
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  });
+
+  // Handle IVR menu selection
+  router.post('/voice-menu', async (req, res) => {
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+    const choice = (req.body.Digits || '').trim();
+
+    switch (choice) {
+      case '1': {
+        twiml.say(
+          {
+            voice: 'Polly.Aditi',
+            language: 'en-IN'
+          },
+          'Our prescription understanding assistant currently works best on WhatsApp. Please send your prescription image to our WhatsApp number, plus one, four one five, five two three, eight eight eight six. You will then receive audio explanations in your preferred language.'
+        );
+        twiml.hangup();
+        break;
+      }
+
+      case '2': {
+        twiml.say(
+          {
+            voice: 'Polly.Aditi',
+            language: 'en-IN'
+          },
+          'You can set medicine and blood pressure reminders through our WhatsApp assistant. After this call, send the word reminder on WhatsApp to plus one, four one five, five two three, eight eight eight six to start.'
+        );
+        twiml.hangup();
+        break;
+      }
+
+      case '3': {
+        // Optional: also send an SMS with the WhatsApp sandbox instructions, if an SMS-capable number is configured
+        const toNumber = req.body.From;
+        const fromNumber = process.env.TWILIO_VOICE_NUMBER;
+
+        if (fromNumber && twilioClient) {
+          try {
+            await twilioClient.messages.create({
+              from: fromNumber,
+              to: toNumber,
+              body:
+                'MediSenseAI WhatsApp assistant:\n' +
+                '1) Save +14155238886 as a contact\n' +
+                '2) Send: "join fat-welcome."\n' +
+                '3) Then send your prescription image to begin.'
+            });
+          } catch (e) {
+            // Silent failure for SMS so IVR still completes
+            console.error('Failed to send IVR WhatsApp link SMS:', e.message);
+          }
+        }
+
+        twiml.say(
+          {
+            voice: 'Polly.Aditi',
+            language: 'en-IN'
+          },
+          'We have sent you an SMS with instructions to start our WhatsApp assistant. Thank you for calling MediSense A I.'
+        );
+        twiml.hangup();
+        break;
+      }
+
+      default: {
+        twiml.say(
+          {
+            voice: 'Polly.Aditi',
+            language: 'en-IN'
+          },
+          'Sorry, that was not a valid choice.'
+        );
+        twiml.redirect('/voice-webhook');
+      }
+    }
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  });
+
+  // Entry point for Sarvam-powered voice agent calls (inbound or outbound)
+  router.post('/voice-agent-entry', (req, res) => {
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+    const from = req.body.From;
+
+    // If caller has not selected a language yet, collect DTMF choice
+    if (!userState[from]?.callLanguageCode) {
+      const gather = twiml.gather({
+        input: 'dtmf',
+        numDigits: 2,
+        action: '/voice-agent-set-language',
+        method: 'POST',
+        timeout: 7
+      });
+
+      gather.say(
+        {
+          voice: 'Polly.Aditi',
+          language: 'en-IN'
+        },
+        'Welcome to MediSense A I. ' +
+          'For Hindi, press 1. ' +
+          'For English, press 2. ' +
+          'For Bengali, press 3. ' +
+          'For Tamil, press 4. ' +
+          'For Telugu, press 5. ' +
+          'For Kannada, press 6. ' +
+          'For Malayalam, press 7. ' +
+          'For Marathi, press 8. ' +
+          'For Gujarati, press 9. ' +
+          'For Punjabi, press 1 0. ' +
+          'For Odia, press 1 1. ' +
+          'Then wait on the line.'
+      );
+
+      // If no input, repeat the menu once
+      twiml.redirect('/voice-agent-entry');
+
+      res.type('text/xml');
+      res.send(twiml.toString());
+      return;
+    }
+
+    const langLabel = userState[from].callLanguageLabel || 'English';
+
+    twiml.say(
+      {
+        voice: 'Polly.Aditi',
+        language: 'en-IN'
+      },
+      `You have selected ${langLabel}. After the beep, please clearly ask your question about your health or medicines. Then stay on the line while I think and speak back the answer.`
+    );
+
+    twiml.record({
+      action: '/voice-agent-process',
+      method: 'POST',
+      maxLength: 30,
+      playBeep: true,
+      trim: 'do-not-trim'
+    });
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  });
+
+  // Handle language selection for voice agent calls
+  router.post('/voice-agent-set-language', (req, res) => {
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+
+    const from = req.body.From;
+    const digits = (req.body.Digits || '').trim();
+    const selected = voiceLangMap[digits];
+
+    if (!selected) {
+      twiml.say(
+        {
+          voice: 'Polly.Aditi',
+          language: 'en-IN'
+        },
+        'Sorry, that was not a valid choice. Let us try again.'
+      );
+      twiml.redirect('/voice-agent-entry');
+      res.type('text/xml');
+      res.send(twiml.toString());
+      return;
+    }
+
+    userState[from] = userState[from] || {};
+    userState[from].callLanguageCode = voiceLangCodeMap[selected.code];
+    userState[from].callLanguageLabel = selected.label;
+
+    twiml.say(
+      {
+        voice: 'Polly.Aditi',
+        language: 'en-IN'
+      },
+      `You selected ${selected.label}.`
+    );
+    twiml.redirect('/voice-agent-entry');
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  });
+
+  // Main Sarvam + Groq voice agent loop
+  router.post('/voice-agent-process', async (req, res) => {
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+
+    const from = req.body.From;
+    const recordingUrl = req.body.RecordingUrl;
+    const timestamp = Date.now();
+
+    if (!recordingUrl) {
+      twiml.say(
+        {
+          voice: 'Polly.Aditi',
+          language: 'en-IN'
+        },
+        'I did not receive any audio. Goodbye.'
+      );
+      twiml.hangup();
+      res.type('text/xml');
+      res.send(twiml.toString());
+      return;
+    }
+
+    try {
+      const localFileName = `call_${timestamp}.wav`;
+      await downloadTwilioMedia(`${recordingUrl}.wav`, localFileName);
+
+      const oggPath = path.join(__dirname, '../../public', localFileName);
+      const wavPath = path.join(__dirname, '../../public', `call_${timestamp}_16k.wav`);
+
+      await new Promise((resolve, reject) => {
+        const ffmpeg = spawn('ffmpeg', ['-i', oggPath, '-ar', '16000', '-ac', '1', wavPath]);
+        ffmpeg.stderr.on('data', data => console.error('ffmpeg (voice-agent):', data.toString()));
+        ffmpeg.on('close', code => (code === 0 ? resolve() : reject(new Error('FFmpeg failed for voice agent'))));
+      });
+
+      const form = new FormData();
+      form.append('file', fs.createReadStream(wavPath));
+      form.append('model', 'saarika:v2.5');
+
+      const langCode = userState[from]?.callLanguageCode || 'en-IN';
+      const targetLang = (langCode.split('-')[0] || 'en');
+      form.append('language_code', targetLang);
+
+      const sttRes = await fetch('https://api.sarvam.ai/speech-to-text', {
+        method: 'POST',
+        headers: {
+          'api-subscription-key': SARVAM_API_KEY,
+          ...form.getHeaders()
+        },
+        body: form
+      });
+
+      const sttJson = await sttRes.json();
+      const transcript = sttJson.transcript || 'Sorry, I could not clearly understand that.';
+
+      const summary = userState[from]?.summary || '';
+      const replyText = await answerQuestionWithContext(summary, transcript, targetLang);
+
+      const answerAudioUrl = await generateSpeechFromText(replyText, langCode, timestamp);
+
+      if (answerAudioUrl) {
+        twiml.play(answerAudioUrl);
+      } else {
+        twiml.say(
+          {
+            voice: 'Polly.Aditi',
+            language: 'en-IN'
+          },
+          replyText
+        );
+      }
+
+      twiml.say(
+        {
+          voice: 'Polly.Aditi',
+          language: 'en-IN'
+        },
+        'If you want to ask another question, please speak after the beep. Otherwise, you may hang up.'
+      );
+
+      twiml.record({
+        action: '/voice-agent-process',
+        method: 'POST',
+        maxLength: 30,
+        playBeep: true,
+        trim: 'do-not-trim'
+      });
+
+      try { fs.existsSync(oggPath) && fs.unlinkSync(oggPath); } catch (_) {}
+      try { fs.existsSync(wavPath) && fs.unlinkSync(wavPath); } catch (_) {}
+    } catch (e) {
+      console.error('Voice agent error:', e.message);
+      twiml.say(
+        {
+          voice: 'Polly.Aditi',
+          language: 'en-IN'
+        },
+        'Sorry, something went wrong while processing your question. Please try again later.'
+      );
+      twiml.hangup();
+    }
+
+    res.type('text/xml');
+    res.send(twiml.toString());
+  });
+
+  // HTTP endpoint to trigger an outbound voice-agent call
+  router.post('/call-voice-agent', async (req, res) => {
+    try {
+      const to = req.body.To || req.body.to;
+      if (!to) {
+        return res.status(400).json({ error: 'Missing "to" phone number.' });
+      }
+
+      const from = process.env.TWILIO_VOICE_NUMBER;
+      if (!from) {
+        return res.status(500).json({ error: 'TWILIO_VOICE_NUMBER is not configured.' });
+      }
+
+      const domain = baseDomain || process.env.NGROK_DOMAIN;
+      if (!domain) {
+        return res.status(500).json({ error: 'NGROK_DOMAIN / baseDomain is not configured.' });
+      }
+
+      const call = await twilioClient.calls.create({
+        to,
+        from,
+        url: `${domain}/voice-agent-entry`
+      });
+
+      return res.json({ sid: call.sid, status: call.status || 'initiated' });
+    } catch (e) {
+      console.error('Failed to initiate outbound voice-agent call:', e.message);
+      return res.status(500).json({ error: 'Failed to initiate call.' });
+    }
+  });
+
+  // Simple Sarvam-powered voice agent demo for incoming calls
+  router.post('/voice-webhook-sarvam-demo', async (req, res) => {
+    const VoiceResponse = twilio.twiml.VoiceResponse;
+    const twiml = new VoiceResponse();
+    const timestamp = Date.now();
+
+    try {
+      const langCode = 'en-IN';
+      const script =
+        'Namaste. This is MediSenseAI, your prescription assistant. ' +
+        'Right now this is a demo of our Sarvam A I voice response. ' +
+        'To use the full experience, please send your prescription photo on WhatsApp to our number. ' +
+        'You will then receive spoken explanations in your preferred Indian language.';
+
+      const audioUrl = await generateSpeechFromText(script, langCode, timestamp);
+
+      if (audioUrl) {
+        twiml.play(audioUrl);
+      } else {
+        twiml.say(
+          {
+            voice: 'Polly.Aditi',
+            language: 'en-IN'
+          },
+          'This is MediSense A I. Our Sarvam powered voice response is temporarily unavailable. ' +
+          'Please try again later or send us a message on WhatsApp instead.'
+        );
+      }
+    } catch (e) {
+      twiml.say(
+        {
+          voice: 'Polly.Aditi',
+          language: 'en-IN'
+        },
+        'Sorry, something went wrong while generating the voice response. ' +
+        'Please try again later or send us a message on WhatsApp instead.'
+      );
+    }
+
+    res.type('text/xml');
+    res.send(twiml.toString());
   });
 
   return router;
